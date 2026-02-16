@@ -149,7 +149,7 @@ node test-api.js  # In terminal 2 (after server starts)
 ### Option 2: Using cURL
 ```bash
 # Admin Login
-curl -X POST http://localhost:5000/api/admin/login \
+curl -X POST ${BASE_URL:-http://localhost:5000}/api/admin/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"admin123"}'
 
@@ -163,14 +163,14 @@ curl -X POST http://localhost:5000/api/admin/users \
 ### Option 3: Using Postman
 1. Download [Postman](https://www.postman.com)
 2. Import `Postman_Collection.json`
-3. Set `base_url` variable to `http://localhost:5000`
+3. Set `base_url` variable to your server URL (e.g. `http://localhost:5000` or whatever you have in your .env)
 4. Run requests with auto token management
 
 ## 📖 Example: Complete Login Workflow
 
 ```javascript
 // 1. Admin logs in
-const adminResponse = await fetch('http://localhost:5000/api/admin/login', {
+const adminResponse = await fetch(`${process.env.BASE_URL || 'http://localhost:5000'}/api/admin/login`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -181,7 +181,7 @@ const adminResponse = await fetch('http://localhost:5000/api/admin/login', {
 const { token: adminToken } = await adminResponse.json();
 
 // 2. Admin creates a user
-const createResponse = await fetch('http://localhost:5000/api/admin/users', {
+const createResponse = await fetch(`${process.env.BASE_URL || 'http://localhost:5000'}/api/admin/users`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',

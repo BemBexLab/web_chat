@@ -16,7 +16,7 @@
  * 8. Cleanup (delete test user)
  */
 
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5000/api';
 
 // Colors for console output
 const colors = {

@@ -25,7 +25,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? process.env.CLIENT_URL : 'http://localhost:3000',
+  origin: true, // accept any origin
   credentials: true,
 }));
 app.use(express.json());
@@ -91,7 +91,7 @@ const httpServer = createServer(app);
 
 const io = new IOServer(httpServer, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' ? process.env.CLIENT_URL : 'http://localhost:3000',
+    origin: true, // accept any origin
     methods: ['GET', 'POST'],
     credentials: true,
   },
