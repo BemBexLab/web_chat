@@ -23,13 +23,13 @@ const __dirname = path.dirname(__filename);
 // Initialize express app
 const app = express();
 
-// Middleware
+// Middleware - optimize for Vercel
 app.use(cors({
   origin: true, // accept any origin
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' })); // Limit payload size
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
 // Serve uploads directory as static files
@@ -91,10 +91,16 @@ const httpServer = createServer(app);
 
 const io = new IOServer(httpServer, {
   cors: {
-    origin: true, // accept any origin
+    origin: true,
     methods: ['GET', 'POST'],
     credentials: true,
   },
+  transports: ['websocket', 'polling'], // Use both for better compatibility
+  serveClient: false,
+  pingInterval: 25000,
+  pingTimeout: 60000,
+  upgradeTimeout: 10000,
+  maxHttpBufferSize: 1e6, // 1MB limit
 });
 
 // expose io to controllers

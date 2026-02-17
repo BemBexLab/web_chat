@@ -149,14 +149,15 @@ export const getConversation = async (req, res) => {
     const { conversationId } = req.params;
     const userId = req.user.id;
     const userType = req.user.type;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, parseInt(req.query.limit) || 50);
+    const skip = (page - 1) * limit;
 
     // If requester is a suspended user, block access to conversation
-    if (userType === 'user') {
-      const u = await User.findById(userId).select('suspended');
-      if (u && u.suspended) {
-        return res.status(403).json({ message: 'Your account is suspended and cannot view messages' });
-      }
+    if (userType === 'user' && req.user.isSuspended) {
+      return res.status(403).json({ message: 'Your account is suspended and cannot view messages' });
     }
+    
     // Verify user is part of this conversation
     const conversationParts = conversationId.split('-');
     const isPartOfConversation =
@@ -165,26 +166,31 @@ export const getConversation = async (req, res) => {
       conversationId.includes(userId.toString());
 
     if (!isPartOfConversation) {
-      return res
-        .status(403)
-        .json({ message: 'You do not have access to this conversation' });
+      return res.status(403).json({ message: 'You do not have access to this conversation' });
     }
 
-    // Get all messages in conversation
-    const messages = await Chat.find({ conversationId })
-      .sort({ createdAt: 1 })
-      .select('-__v');
+    // Get paginated messages
+    const [messages, total] = await Promise.all([
+      Chat.find({ conversationId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('-__v')
+        .lean(),
+      Chat.countDocuments({ conversationId })
+    ]);
 
-    // Mark messages as read
-    await Chat.updateMany(
+    // Mark messages as read (non-blocking)
+    Chat.updateMany(
       { conversationId, receiverId: userId, isRead: false },
       { isRead: true }
-    );
+    ).catch(err => console.error('Mark as read error:', err));
 
     res.status(200).json({
       message: 'Conversation retrieved successfully',
       conversationId,
-      messages,
+      messages: messages.reverse(),
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -196,11 +202,8 @@ export const getConversations = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
     // Block suspended users from listing conversations
-    if (req.user.type === 'user') {
-      const u = await User.findById(req.user.id).select('suspended');
-      if (u && u.suspended) {
-        return res.status(403).json({ message: 'Your account is suspended and cannot view conversations' });
-      }
+    if (req.user.type === 'user' && req.user.isSuspended) {
+      return res.status(403).json({ message: 'Your account is suspended and cannot view conversations' });
     }
 
     const conversations = await Chat.aggregate([
@@ -273,9 +276,19 @@ export const getConversations = async (req, res) => {
 // Get All Users (for admin to chat with)
 export const getAllUsersForChat = async (req, res) => {
   try {
-    const users = await User.find({ isActive: true })
-      .select('_id username email createdAt suspended')
-      .sort({ username: 1 });
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, parseInt(req.query.limit) || 50);
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      User.find({ isActive: true })
+        .select('_id username email createdAt suspended')
+        .sort({ username: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      User.countDocuments({ isActive: true })
+    ]);
 
     const usersWithConversations = users.map((user) => {
       const conversationId = generateConversationId(req.user.id, user._id);
@@ -289,8 +302,9 @@ export const getAllUsersForChat = async (req, res) => {
 
     res.status(200).json({
       message: 'Users retrieved successfully',
-      total: usersWithConversations.length,
+      total,
       users: usersWithConversations,
+      pagination: { page, limit, pages: Math.ceil(total / limit) },
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -327,11 +341,8 @@ export const markAsRead = async (req, res) => {
     const { conversationId } = req.params;
     const userId = req.user.id;
     // Prevent suspended users from marking messages as read
-    if (req.user.type === 'user') {
-      const u = await User.findById(userId).select('suspended');
-      if (u && u.suspended) {
-        return res.status(403).json({ message: 'Your account is suspended and cannot perform this action' });
-      }
+    if (req.user.type === 'user' && req.user.isSuspended) {
+      return res.status(403).json({ message: 'Your account is suspended and cannot perform this action' });
     }
 
     const result = await Chat.updateMany(

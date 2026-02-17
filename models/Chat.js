@@ -79,5 +79,7 @@ const chatSchema = new mongoose.Schema(
 // Index for faster queries
 chatSchema.index({ conversationId: 1, createdAt: -1 });
 chatSchema.index({ senderId: 1, receiverId: 1 });
+chatSchema.index({ receiverId: 1, isRead: 1 });
+chatSchema.index({ conversationId: 1, receiverId: 1, isRead: 1 });
 
 export default mongoose.model('Chat', chatSchema);
