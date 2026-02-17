@@ -3,8 +3,6 @@ import mongoose from 'mongoose';
 export const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chatapp', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       maxPoolSize: 10, // Optimize for Vercel cold starts
       minPoolSize: 1,
       maxIdleTimeMS: 45000,
@@ -14,12 +12,7 @@ export const connectDB = async () => {
 
     console.log(`MongoDB connected: ${conn.connection.host}`);
     
-    // Create indexes on connection
-    const Chat = makeDb().model('Chat');
-    if (Chat) {
-      Chat.collection.createIndexes().catch(err => console.error('Index creation error:', err));
-    }
-    
+    // Indexes are automatically created from model schemas
     return conn;
   } catch (error) {
     console.error(`Error connecting to MongoDB: ${error.message}`);
