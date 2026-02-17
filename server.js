@@ -24,9 +24,30 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Middleware - optimize for Vercel
+// CORS configuration that works for both local development and production
+const allowedOrigins = [
+  'http://localhost:3000',           // Local development
+  'http://localhost:3001',           // Alternative local port
+  'https://web-chat-frontend-six.vercel.app', // Production frontend (if deployed)
+  'https://web-chat-ashen-seven.vercel.app',  // This server's own URL (for swagger/docs)
+];
+
 app.use(cors({
-  origin: true, // accept any origin
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl requests, or Same-Origin)
+    if (!origin || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '10mb' })); // Limit payload size
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -91,7 +112,16 @@ const httpServer = createServer(app);
 
 const io = new IOServer(httpServer, {
   cors: {
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin || process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
